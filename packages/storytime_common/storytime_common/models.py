@@ -9,6 +9,7 @@ class JobStatus(str, Enum):
     queued = "queued"
     scripting = "scripting"
     tts = "tts"
+    images = "images"
     rendering = "rendering"
     uploading = "uploading"
     done = "done"

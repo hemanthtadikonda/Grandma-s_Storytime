@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     tts_voice: str = "en-GB-SoniaNeural"
     default_template_id: str = "kids_moral_v1"
 
+    # Scene images: search per prompt, download to temp dir, delete after job
+    image_provider: Literal["none", "wikimedia", "pexels", "pixabay"] = "wikimedia"
+    pexels_api_key: Optional[str] = None
+    pixabay_api_key: Optional[str] = None
+    image_search_timeout_sec: int = 25
+    image_max_bytes: int = 8_000_000
+    image_target_width: int = 1080
+    image_target_height: int = 1920
+
     job_key_prefix: str = "job:"
     idempotency_prefix: str = "idem:"
     artifact_url_ttl_sec: int = 3600

@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from app.pipeline.image_queries import build_scene_image_queries
 from storytime_common.settings import Settings
 
 
@@ -39,10 +40,14 @@ def generate_script(prompt: str, template_id: str, duration_target_sec: int, con
     if match := re.search(r"\b([A-Z][a-z]+)\b", idea):
         hero = match.group(1)
 
+    image_queries = build_scene_image_queries(idea, title, hero)
+
     scenes = [
         {
             "id": "s1",
-            "caption": "Grandma's Storytime ✨",
+            "emoji": "✨",
+            "caption": "Grandma's Storytime",
+            "image_query": image_queries[0],
             "narration_line": (
                 "Hello, my dears. Snuggle in close. "
                 "Grandma has a warm little story just for you."
@@ -50,7 +55,9 @@ def generate_script(prompt: str, template_id: str, duration_target_sec: int, con
         },
         {
             "id": "s2",
+            "emoji": "📖",
             "caption": title,
+            "image_query": image_queries[1],
             "narration_line": (
                 f"Today we visit {hero}. {idea} "
                 "The sun was gentle, and the world felt full of wonder."
@@ -58,7 +65,9 @@ def generate_script(prompt: str, template_id: str, duration_target_sec: int, con
         },
         {
             "id": "s3",
-            "caption": "Something to learn…",
+            "emoji": "🌈",
+            "caption": "Something to learn",
+            "image_query": image_queries[2],
             "narration_line": (
                 f"But oh my, {hero} had a big feeling in their heart. "
                 "Sometimes the right thing feels hard, doesn't it? "
@@ -67,7 +76,9 @@ def generate_script(prompt: str, template_id: str, duration_target_sec: int, con
         },
         {
             "id": "s4",
-            "caption": "The happy ending 💛",
+            "emoji": "🌟",
+            "caption": "Happy ending",
+            "image_query": image_queries[3],
             "narration_line": (
                 f"And do you know what happened? {hero} chose kindness. "
                 "Friends smiled, hearts felt lighter, and everyone played together. "
@@ -76,7 +87,9 @@ def generate_script(prompt: str, template_id: str, duration_target_sec: int, con
         },
         {
             "id": "s5",
-            "caption": "Remember…",
+            "emoji": "💛",
+            "caption": "Remember",
+            "image_query": image_queries[4],
             "narration_line": (
                 "So remember, my sunshine: be kind, be honest, and share what you can. "
                 "Grandma loves you very much. Sweet dreams till our next story."

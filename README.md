@@ -2,9 +2,9 @@
 
 Create **English kids Shorts**: you send a story idea (prompt) → the worker writes a grandma-style script, speaks it with a **warm narrator voice** (Edge TTS), and renders a **colorful vertical video** you can upload to YouTube.
 
-**What you get today:** real spoken English, kid-friendly colors, big captions, gentle zoom/fades — good for moral stories you review before publish.
+**What you get today:** grandma English voice; **per-scene images** from your prompt keywords (Wikimedia / Pexels / Pixabay), slow zoom, caption cards; temp images deleted after each job. Fallback: generated art or PNGs in `templates/kids_moral_v1/assets/`.
 
-**What is not here yet:** cartoon characters, full 2D/3D animation, or automatic YouTube upload. Those are the next upgrades (illustrations per scene, Remotion, or an LLM for richer unique stories).
+**You are responsible** for image licenses and YouTube attribution when using search providers. **Not yet:** full character animation.
 
 ## Architecture (Phase 1 — single VM / Compose)
 
@@ -28,7 +28,7 @@ flowchart LR
 | Storage | MinIO (local) or **AWS S3** via EC2 IAM role; artifacts at `jobs/{id}/v1/output.mp4` |
 | Contract | `schemas/job_request_v1.json`, `schemas/script_v1.json` |
 
-**Job statuses:** `queued` → `scripting` → `tts` → `rendering` → `uploading` → `done` (or `failed`).
+**Job statuses:** `queued` → `scripting` → `tts` → `images` → `rendering` → `uploading` → `done` (or `failed`).
 
 **Idempotency:** same `prompt` + `template_id` + `duration_target_sec` → SHA-256 key; completed jobs return `cached: true`.
 

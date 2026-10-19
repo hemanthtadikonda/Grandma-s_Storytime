@@ -2,6 +2,7 @@ import tempfile
 from pathlib import Path
 
 from app.celery_app import celery_app
+from app.pipeline.image_fetch import fetch_scene_images
 from app.pipeline.render import render_short
 from app.pipeline.script import generate_script
 from app.pipeline.tts import synthesize_scenes
@@ -47,9 +48,12 @@ def process_job(job_id: str) -> str:
             job.script = script
             store.update(job)
 
+            job = _set_status(store, job, JobStatus.images)
+            fetched_images = fetch_scene_images(script, tmp_path / "images", settings)
+
             job = _set_status(store, job, JobStatus.rendering)
             mp4 = tmp_path / "output.mp4"
-            render_short(script, scene_wavs, mp4)
+            render_short(script, scene_wavs, mp4, scene_images=fetched_images)
 
             job = _set_status(store, job, JobStatus.uploading)
             key = f"jobs/{job.id}/v1/output.mp4"

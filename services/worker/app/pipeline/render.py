@@ -4,6 +4,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from app.pipeline.visuals import scene_image_path, write_scene_art
+
 
 def _manifest(template_id: str) -> dict[str, Any]:
     for base in (
@@ -32,52 +34,108 @@ def _font_path(manifest: dict[str, Any]) -> str:
     return "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 
-def render_short(script: dict[str, Any], scene_wavs: list[Path], out_mp4: Path) -> Path:
+def _scene_video_filter(
+    dur: float,
+    fps: int,
+    w: int,
+    h: int,
+    font_file: str,
+    caption: str,
+    caption_color: str,
+    font_size: int,
+    from_image: bool,
+) -> str:
+    frames = max(int(dur * fps), 1)
+    fade_out = max(dur - 0.4, 0.1)
+
+    if from_image:
+        motion = (
+            f"scale=8000:-1,zoompan=z='min(1.08+0.0012*on,1.22)':"
+            f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+            f"d={frames}:s={w}x{h}:fps={fps}"
+        )
+    else:
+        motion = f"scale={w}:{h},fps={fps}"
+
+    # Caption card + gentle bounce (kids notice motion on text)
+    caption_y = f"h-200+25*sin(2*PI*t/2.8)"
+    return (
+        f"{motion},"
+        f"fade=t=in:st=0:d=0.35,fade=t=out:st={fade_out:.2f}:d=0.35,"
+        f"drawbox=x=40:y=h-280:w=w-80:h=200:color=0x000000@0.42:t=fill,"
+        f"drawbox=x=40:y=h-280:w=w-80:h=200:color=0xffffff@0.15:t=6,"
+        f"drawtext=fontfile={font_file}:text='{caption}':fontcolor=0x{caption_color}:"
+        f"fontsize={font_size}:borderw=3:bordercolor=0x00000099:"
+        f"x=(w-text_w)/2:y={caption_y}"
+    )
+
+
+def render_short(
+    script: dict[str, Any],
+    scene_wavs: list[Path],
+    out_mp4: Path,
+    scene_images: list[Path | None] | None = None,
+) -> Path:
     manifest = _manifest(script["template_id"])
+    template_id = script["template_id"]
     w = manifest["video"]["width"]
     h = manifest["video"]["height"]
     fps = manifest["video"]["fps"]
-    font_size = manifest["style"]["font_size"]
+    font_size = manifest["style"].get("caption_font_size", manifest["style"].get("font_size", 52))
     caption_color = manifest["style"].get("caption_color", "#FFF8E7").lstrip("#")
     scene_colors = manifest["style"].get(
         "scene_colors",
-        ["#5B4BB4", "#E85D9A", "#3AAFB9", "#F4A261", "#6C63FF"],
+        ["#6C63FF", "#FF6B9D", "#4ECDC4", "#FFD166", "#9B5DE5"],
     )
     font_file = _font_path(manifest)
 
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
-    scene_clips: list[Path] = []
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
+        scene_clips: list[Path] = []
+
         for i, scene in enumerate(script["scenes"]):
             caption = _escape_drawtext(scene["caption"])
             dur = float(scene["duration_sec"])
-            bg = scene_colors[i % len(scene_colors)].lstrip("#")
             scene_mp4 = tmp_path / f"scene_{i}.mp4"
             audio = scene_wavs[i]
+            emoji = scene.get("emoji", "")
+            bg = scene_colors[i % len(scene_colors)]
 
-            # Gentle zoom + fade for a soft "animated" feel (kid-friendly, not flashy).
-            vf = (
-                f"color=c=0x{bg}:s={w}x{h}:d={dur},"
-                f"zoompan=z='min(1.0+0.0008*on,1.06)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
-                f"d={int(dur * fps)}:s={w}x{h}:fps={fps},"
-                f"fade=t=in:st=0:d=0.45,fade=t=out:st={max(dur - 0.45, 0.1):.2f}:d=0.45,"
-                f"drawtext=fontfile={font_file}:"
-                f"text='{caption}':fontcolor=0x{caption_color}:fontsize={font_size}:"
-                f"borderw=4:bordercolor=0x00000066:"
-                f"x=(w-text_w)/2:y=h*0.72-text_h/2"
-            )
+            fetched = scene_images[i] if scene_images and i < len(scene_images) else None
+            custom = scene_image_path(template_id, i, scene.get("id", f"s{i}"))
+            if fetched and fetched.is_file():
+                image_input = fetched
+                from_image = True
+            elif custom:
+                image_input = custom
+                from_image = True
+            else:
+                image_input = write_scene_art(
+                    tmp_path / f"art_{i}.png",
+                    w,
+                    h,
+                    bg,
+                    i,
+                    emoji=emoji,
+                )
+                from_image = True
+
+            vf = _scene_video_filter(dur, fps, w, h, font_file, caption, caption_color, font_size, from_image)
+
             subprocess.run(
                 [
                     "ffmpeg",
                     "-y",
-                    "-f",
-                    "lavfi",
+                    "-loop",
+                    "1",
                     "-i",
-                    vf,
+                    str(image_input),
                     "-i",
                     str(audio),
+                    "-vf",
+                    vf,
                     "-c:v",
                     "libx264",
                     "-pix_fmt",

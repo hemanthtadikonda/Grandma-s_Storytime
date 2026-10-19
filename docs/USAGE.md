@@ -128,12 +128,42 @@ POST `/jobs` with the same JSON body as above.
 | `queued` | Waiting for worker |
 | `scripting` | Story text |
 | `tts` | Voice (Edge TTS) |
+| `images` | Download scene pictures from search |
 | `rendering` | Video (FFmpeg) |
 | `uploading` | Saving MP4 |
 | `done` | Use `download_url` |
 | `failed` | See `error`; run `docker compose logs worker` |
 
-Usually **1–3 minutes** per video. Same prompt again may return `cached: true` with an existing file.
+Usually **1–3 minutes** per video. Same prompt again may return `cached: true` — change the prompt slightly or set `idempotency_key` to render again after you update the worker.
+
+</details>
+
+<details>
+<summary><strong>Scene images (auto search from prompt)</strong></summary>
+
+For each job the worker:
+
+1. Builds **5 search queries** from your prompt (e.g. Saraswati → goddess + children learning).
+2. Downloads one image per scene into a **temp folder** (`images` status).
+3. Plays them **in scene order** with voice + zoom.
+4. **Deletes** temp images when the job finishes (only the MP4 stays in S3).
+
+Configure in `.env` on the worker:
+
+| `IMAGE_PROVIDER` | API key |
+|------------------|---------|
+| `wikimedia` (default, free) | none |
+| `pexels` | `PEXELS_API_KEY` |
+| `pixabay` | `PIXABAY_API_KEY` |
+| `none` | generated art only |
+
+After changing `.env`: `docker compose up --build -d worker`
+
+**Override:** put `scene_00.png` … `scene_04.png` in `templates/kids_moral_v1/assets/` (see assets README).
+
+**License:** verify images are OK for your channel; Wikimedia often needs **attribution** in the YouTube description.
+
+Use a new `idempotency_key` or change the prompt after visual updates.
 
 </details>
 

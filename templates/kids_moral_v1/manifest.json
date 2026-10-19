@@ -1,7 +1,7 @@
 {
   "template_id": "kids_moral_v1",
-  "version": "1.1.0",
-  "description": "Vertical kids moral short: grandma voice, colorful scenes, gentle motion.",
+  "version": "1.2.0",
+  "description": "Vertical kids short: generated or custom scene art, Ken Burns motion, caption card.",
   "video": {
     "width": 1080,
     "height": 1920,
@@ -12,6 +12,7 @@
     "scene_colors": ["#6C63FF", "#FF6B9D", "#4ECDC4", "#FFD166", "#9B5DE5"],
     "caption_color": "#FFF8E7",
     "font_size": 58,
+    "caption_font_size": 48,
     "font_file": "/usr/share/fonts/truetype/quicksand/Quicksand-Bold.ttf"
   },
   "scene_count_hint": 5
