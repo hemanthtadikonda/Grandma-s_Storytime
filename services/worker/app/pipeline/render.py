@@ -22,6 +22,13 @@ def _ffmpeg_path(path: Path) -> str:
     return str(path).replace("\\", "/").replace(":", "\\:")
 
 
+def _run_ffmpeg(args: list[str]) -> None:
+    result = subprocess.run(args, capture_output=True, text=True)
+    if result.returncode != 0:
+        tail = (result.stderr or result.stdout or "")[-2500:]
+        raise RuntimeError(f"ffmpeg failed: {tail}")
+
+
 def _font_path(manifest: dict[str, Any]) -> str:
     candidates = [
         manifest["style"].get("font_file"),
@@ -49,24 +56,23 @@ def _scene_video_filter(
     fade_out = max(dur - 0.4, 0.1)
 
     if from_image:
+        # Moderate upscale — scale=8000 can OOM on small VMs
         motion = (
-            f"scale=8000:-1,zoompan=z='min(1.08+0.0012*on,1.22)':"
+            f"scale=3840:-1,zoompan=z='min(1.06+0.001*on,1.18)':"
             f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
             f"d={frames}:s={w}x{h}:fps={fps}"
         )
     else:
         motion = f"scale={w}:{h},fps={fps}"
 
-    # Caption card + gentle bounce (kids notice motion on text)
-    caption_y = f"h-200+25*sin(2*PI*t/2.8)"
     return (
         f"{motion},"
         f"fade=t=in:st=0:d=0.35,fade=t=out:st={fade_out:.2f}:d=0.35,"
         f"drawbox=x=40:y=h-280:w=w-80:h=200:color=0x000000@0.42:t=fill,"
         f"drawbox=x=40:y=h-280:w=w-80:h=200:color=0xffffff@0.15:t=6,"
-        f"drawtext=fontfile={font_file}:textfile={caption_file}:expansion=none:fontcolor=0x{caption_color}:"
-        f"fontsize={font_size}:borderw=3:bordercolor=0x00000099:"
-        f"x=(w-text_w)/2:y={caption_y}"
+        f"drawtext=fontfile={font_file}:textfile='{caption_file}':expansion=none:"
+        f"fontcolor=0x{caption_color}:fontsize={font_size}:borderw=3:bordercolor=0x00000099:"
+        f"x=(w-text_w)/2:y='h-th-90'"
     )
 
 
@@ -128,7 +134,7 @@ def render_short(
                 dur, fps, w, h, font_file, caption_file, caption_color, font_size, from_image
             )
 
-            subprocess.run(
+            _run_ffmpeg(
                 [
                     "ffmpeg",
                     "-y",
@@ -148,16 +154,13 @@ def render_short(
                     "aac",
                     "-shortest",
                     str(scene_mp4),
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
+                ]
             )
             scene_clips.append(scene_mp4)
 
         list_file = tmp_path / "concat.txt"
         list_file.write_text("\n".join(f"file '{p}'" for p in scene_clips), encoding="utf-8")
-        subprocess.run(
+        _run_ffmpeg(
             [
                 "ffmpeg",
                 "-y",
@@ -170,9 +173,7 @@ def render_short(
                 "-c",
                 "copy",
                 str(out_mp4),
-            ],
-            check=True,
-            capture_output=True,
+            ]
         )
 
     return out_mp4
