@@ -7,52 +7,45 @@ Stack running → API on port **8000**.
 | VM (SSH) | `http://localhost:8000` |
 | Your laptop | `http://<VM_PUBLIC_IP>:8000` |
 
-**Health:** `GET /health` → `{"status":"ok"}`  
-**Browser UI:** `/docs` (Swagger)
+**Health:** `GET /health`  
+**Browser UI:** `/docs`
 
-**Always send JSON** to `POST /jobs` — not plain story text (see [Fix 422 error](#fix-422-error) below).
+## You only need a prompt
 
-Copy this body and change only `prompt`:
+Users send **plain text** — no JSON.
 
-```json
-{
-  "prompt": "Your story idea in one or more sentences.",
-  "template_id": "kids_moral_v1",
-  "duration_target_sec": 60,
-  "content_source": "original"
-}
-```
+**Flow:** `POST /jobs` (paste prompt) → copy `id` → `GET /jobs/{id}` until `done` → open `download_url`.
 
-**Flow:** `POST /jobs` → copy `id` → `GET /jobs/{id}` until `status` is `done` → open `download_url` for the MP4.
+The API turns your text into an internal job automatically (`kids_moral_v1`, ~60 seconds, etc.).
 
 ---
 
 <details>
-<summary><strong>Swagger UI (/docs)</strong> — best for first video</summary>
+<summary><strong>Swagger UI (/docs)</strong></summary>
 
 1. Open `http://<host>:8000/docs`
-2. **GET /health** → Try it out → Execute
-3. **POST /jobs** → Try it out
-4. Under Request body, paste the **full JSON** block from the top of this page (with your `prompt`)
-5. Execute → expect **202** and an `id`
-6. **GET /jobs/{job_id}** → paste `id` → Execute
-7. Repeat step 6 every few seconds until `status` is `done`
-8. Open `download_url` in a new browser tab
+2. **POST /jobs** → **Try it out**
+3. In the request body text box, paste your **whole story or idea** (many lines OK)
+4. **Execute** → **202** with an `id`
+5. **GET /jobs/{job_id}** → poll until `status` is `done`
+6. Open `download_url` for the MP4
+
+Do **not** use the old JSON shape on `POST /jobs`. Advanced options: **POST /jobs/json** (developers only).
 
 </details>
 
 <details>
-<summary><strong>curl</strong> — EC2 SSH or laptop</summary>
+<summary><strong>curl</strong></summary>
 
 ```bash
-API=http://localhost:8000   # or http://<VM_PUBLIC_IP>:8000
+API=http://localhost:8000   # or your VM IP
 
-JOB=$(curl -s -X POST "$API/jobs" -H "Content-Type: application/json" -d '{
-  "prompt": "Mia learns to share her red ball at the park.",
-  "template_id": "kids_moral_v1",
-  "duration_target_sec": 60,
-  "content_source": "original"
-}')
+JOB=$(curl -s -X POST "$API/jobs" \
+  -H "Content-Type: text/plain; charset=utf-8" \
+  --data-binary @- <<'EOF'
+Mia learns to share her red ball with a shy new friend at the park.
+EOF
+)
 echo "$JOB"
 JOB_ID=$(echo "$JOB" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
 
@@ -62,61 +55,39 @@ while true; do
   [ "$STATUS" = "done" ] || [ "$STATUS" = "failed" ] && break
   sleep 5
 done
+```
 
-URL=$(curl -s "$API/jobs/$JOB_ID" | python3 -c "import sys,json; print(json.load(sys.stdin).get('download_url',''))")
-curl -L -o my_short.mp4 "$URL"
+One line:
+
+```bash
+curl -s -X POST "$API/jobs" -H "Content-Type: text/plain" -d "Your story idea here."
 ```
 
 </details>
 
 <details>
-<summary><strong>PowerShell</strong> — Windows</summary>
+<summary><strong>PowerShell</strong></summary>
 
 ```powershell
-$base = "http://<VM_PUBLIC_IP>:8000"   # or localhost
-
-.\scripts\submit_job.ps1 -Prompt "Your story idea" -ApiBase $base
-.\scripts\poll_job.ps1 -JobId "<job-id-from-output>" -ApiBase $base
+.\scripts\submit_job.ps1 -Prompt "Your story idea" -ApiBase "http://<VM_IP>:8000"
+.\scripts\poll_job.ps1 -JobId "<job-id>" -ApiBase "http://<VM_IP>:8000"
 ```
-
-Or without scripts:
-
-```powershell
-$body = @{
-  prompt = "Your story idea"
-  template_id = "kids_moral_v1"
-  duration_target_sec = 60
-  content_source = "original"
-} | ConvertTo-Json
-
-$job = Invoke-RestMethod -Method Post -Uri "$base/jobs" -ContentType "application/json" -Body $body
-Invoke-RestMethod -Uri "$base/jobs/$($job.id)"
-```
-
-Open `download_url` when `status` is `done`.
 
 </details>
 
 <details>
-<summary><strong>Postman / other tools</strong></summary>
+<summary><strong>Advanced: POST /jobs/json</strong> (optional)</summary>
 
-Import OpenAPI: `http://<host>:8000/openapi.json`  
-POST `/jobs` with the same JSON body as above.
+For scripts that need `idempotency_key`, `duration_target_sec`, etc.:
 
-`GET /artifacts/{id}` — same download as job id (for now `artifact_id` = `job_id`).
-
-</details>
-
-<details>
-<summary><strong>Request fields</strong></summary>
-
-| Field | Required | Notes |
-|-------|----------|--------|
-| `prompt` | Yes | Story idea; English works best with current voice |
-| `template_id` | Yes | `kids_moral_v1` |
-| `duration_target_sec` | No | Default `60` (15–180) |
-| `content_source` | No | `original` or `public_domain` |
-| `idempotency_key` | No | Optional; else server hashes prompt + template |
+```json
+{
+  "prompt": "Your story",
+  "template_id": "kids_moral_v1",
+  "duration_target_sec": 60,
+  "content_source": "original"
+}
+```
 
 </details>
 
@@ -127,76 +98,19 @@ POST `/jobs` with the same JSON body as above.
 |----------|---------|
 | `queued` | Waiting for worker |
 | `scripting` | Story text |
-| `tts` | Voice (Edge TTS) |
-| `images` | Download scene pictures from search |
-| `rendering` | Video (FFmpeg) |
+| `tts` | Voice |
+| `images` | Download scene pictures |
+| `rendering` | Video |
 | `uploading` | Saving MP4 |
 | `done` | Use `download_url` |
-| `failed` | See `error`; run `docker compose logs worker` |
-
-Usually **1–3 minutes** per video. Same prompt again may return `cached: true` — change the prompt slightly or set `idempotency_key` to render again after you update the worker.
+| `failed` | See `error`; `docker compose logs worker` |
 
 </details>
 
 <details>
-<summary><strong>Scene images (auto search from prompt)</strong></summary>
+<summary><strong>Scene images (auto)</strong></summary>
 
-For each job the worker:
-
-1. Builds **5 search queries** from your prompt (e.g. Saraswati → goddess + children learning).
-2. Downloads one image per scene into a **temp folder** (`images` status).
-3. Plays them **in scene order** with voice + zoom.
-4. **Deletes** temp images when the job finishes (only the MP4 stays in S3).
-
-Configure in `.env` on the worker:
-
-| `IMAGE_PROVIDER` | API key |
-|------------------|---------|
-| `wikimedia` (default, free) | none |
-| `pexels` | `PEXELS_API_KEY` |
-| `pixabay` | `PIXABAY_API_KEY` |
-| `none` | generated art only |
-
-After changing `.env`: `docker compose up --build -d worker`
-
-**Override:** put `scene_00.png` … `scene_04.png` in `templates/kids_moral_v1/assets/` (see assets README).
-
-**License:** verify images are OK for your channel; Wikimedia often needs **attribution** in the YouTube description.
-
-Use a new `idempotency_key` or change the prompt after visual updates.
-
-</details>
-
-<details>
-<summary><strong>Example prompt (Saraswati / learning)</strong></summary>
-
-```json
-{
-  "prompt": "A gentle story for children and families: we pray to Goddess Saraswati for wisdom before learning. A child named Ananya is nervous about reading aloud; after a quiet prayer she tries again with patience. Moral: begin learning with gratitude and kindness.",
-  "template_id": "kids_moral_v1",
-  "duration_target_sec": 60,
-  "content_source": "original"
-}
-```
-
-Review the MP4 before YouTube upload.
-
-</details>
-
-<details>
-<summary><strong>Fix 422 error</strong></summary>
-
-Error: `json_invalid` / `JSON decode error`
-
-**Cause:** Request body was only the story sentence, not JSON.
-
-**Fix:** Body must be:
-
-```json
-{ "prompt": "...", "template_id": "kids_moral_v1", "duration_target_sec": 60, "content_source": "original" }
-```
-
-In Swagger, use **Edit Value** under POST /jobs, not a single line of text.
+From your prompt, the worker searches images per scene (see `.env` `IMAGE_PROVIDER`). Temp files are deleted after the job. Override with PNGs in `templates/kids_moral_v1/assets/`.
 
 </details>
 
@@ -205,12 +119,9 @@ In Swagger, use **Edit Value** under POST /jobs, not a single line of text.
 
 | Issue | Action |
 |-------|--------|
-| Connection refused | `docker compose ps`; open port 8000 in firewall |
-| Stuck `queued` | `docker compose logs worker --tail 50` |
-| `failed` at `tts` | VM needs internet (Edge TTS) |
-| `failed` at `uploading` | S3 bucket + IAM role — [deploy/aws-s3-iam-role.md](deploy/aws-s3-iam-role.md) |
-| 422 on POST | Use JSON body (see above) |
-
-Restrict port **8000** to your IP so others cannot submit jobs.
+| 422 on `POST /jobs` | Use **text/plain** body, not JSON |
+| Used JSON on `/jobs` by mistake | Use **POST /jobs/json** or switch to plain text |
+| Stuck `queued` | `docker compose logs worker` |
+| Same video again | Change prompt or use `idempotency_key` in `/jobs/json` |
 
 </details>

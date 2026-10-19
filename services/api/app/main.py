@@ -1,7 +1,7 @@
 import uuid
 
 from celery import Celery
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 
 from storytime_common.idempotency import prompt_hash
 from storytime_common.models import (
@@ -23,9 +23,18 @@ celery = Celery("storytime", broker=settings.celery_broker_url, backend=settings
 
 app = FastAPI(
     title="Grandma's Storytime API",
-    version="0.1.0",
-    description="Async kids-short video pipeline: submit job → poll status → download MP4.",
+    version="0.2.0",
+    description=(
+        "Create a kids short from **your prompt only** — paste text at **POST /jobs** (no JSON). "
+        "Poll **GET /jobs/{id}**, then download the MP4 from `download_url`."
+    ),
 )
+
+
+def _normalize_idempotency_key(key: str | None) -> str | None:
+    if key is None or key.strip() in ("", "string"):
+        return None
+    return key.strip()
 
 
 def _job_to_response(job: JobRecord, cached: bool = False) -> JobResponse:
@@ -46,14 +55,8 @@ def _job_to_response(job: JobRecord, cached: bool = False) -> JobResponse:
     )
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.post("/jobs", response_model=JobResponse, status_code=202)
-def create_job(body: SubmitJobRequest) -> JobResponse:
-    idem = body.idempotency_key or prompt_hash(
+def _enqueue_job(body: SubmitJobRequest) -> JobResponse:
+    idem = _normalize_idempotency_key(body.idempotency_key) or prompt_hash(
         body.prompt, body.template_id, body.duration_target_sec
     )
     existing = store.get_by_idempotency(idem)
@@ -67,7 +70,7 @@ def create_job(body: SubmitJobRequest) -> JobResponse:
     job = JobRecord(
         id=job_id,
         status=JobStatus.queued,
-        prompt=body.prompt,
+        prompt=body.prompt.strip(),
         template_id=body.template_id,
         duration_target_sec=body.duration_target_sec,
         content_source=body.content_source,
@@ -79,6 +82,48 @@ def create_job(body: SubmitJobRequest) -> JobResponse:
     store.save(job)
     celery.send_task("worker.process_job", args=[job_id])
     return _job_to_response(job)
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post(
+    "/jobs",
+    response_model=JobResponse,
+    status_code=202,
+    summary="Create a video — prompt only",
+    description=(
+        "Paste your story or video idea as **plain text** in the request body. "
+        "Multiline text is OK. The server builds the job JSON for you."
+    ),
+)
+def create_job(
+    prompt: str = Body(
+        ...,
+        media_type="text/plain",
+        examples=[
+            "A gentle Saraswati prayer story for children: we ask for wisdom before learning to read and write."
+        ],
+    ),
+) -> JobResponse:
+    if not prompt.strip():
+        raise HTTPException(status_code=422, detail="Prompt cannot be empty")
+    return _enqueue_job(SubmitJobRequest(prompt=prompt))
+
+
+@app.post(
+    "/jobs/json",
+    response_model=JobResponse,
+    status_code=202,
+    summary="Create a video (advanced JSON)",
+    description="Optional fields: `template_id`, `duration_target_sec`, `idempotency_key`, `metadata`.",
+    include_in_schema=True,
+)
+def create_job_json(body: SubmitJobRequest) -> JobResponse:
+    body.idempotency_key = _normalize_idempotency_key(body.idempotency_key)
+    return _enqueue_job(body)
 
 
 @app.get("/jobs/{job_id}", response_model=JobResponse)

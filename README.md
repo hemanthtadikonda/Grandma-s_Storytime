@@ -36,7 +36,8 @@ flowchart LR
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/jobs` | Enqueue render; returns `202` body with `id`, `status` |
+| `POST` | `/jobs` | **Prompt only** (plain text body) → `202` with `id` |
+| `POST` | `/jobs/json` | Optional JSON for advanced fields |
 | `GET` | `/jobs/{id}` | Status; includes presigned `download_url` when `done` |
 | `GET` | `/artifacts/{id}` | Artifact metadata + download URL (`artifact_id` = `job_id` for now) |
 | `GET` | `/health` | Liveness |
