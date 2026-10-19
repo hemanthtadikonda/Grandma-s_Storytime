@@ -1,13 +1,15 @@
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from app.pipeline.image_queries import build_scene_image_queries
 from app.pipeline.prompt_extract import caption_safe, idea_sentence, story_title
+from app.pipeline.script_assemble import assemble_script
+from app.pipeline.script_llm import generate_llm_content_blocks
 from storytime_common.settings import Settings
 
-INTRO_SECONDS = 5
-CONTENT_SCENE_COUNT = 4
+logger = logging.getLogger(__name__)
 
 
 def _template_manifest(template_id: str) -> dict[str, Any]:
@@ -17,13 +19,7 @@ def _template_manifest(template_id: str) -> dict[str, Any]:
     return json.loads(root.read_text(encoding="utf-8"))
 
 
-def _content_slot_sec(duration_target_sec: int) -> float:
-    remaining = max(duration_target_sec - INTRO_SECONDS, CONTENT_SCENE_COUNT * 8)
-    return round(remaining / CONTENT_SCENE_COUNT, 2)
-
-
-def _content_narration_and_captions(prompt: str, title: str) -> list[dict[str, str]]:
-    """Four brief scenes — always derived from this job's prompt, never a fixed theme."""
+def _stub_content_scenes(prompt: str, title: str) -> list[dict[str, str]]:
     topic = caption_safe(title)
     idea = idea_sentence(prompt, max_words=18)
     if len(idea) < 12:
@@ -33,70 +29,63 @@ def _content_narration_and_captions(prompt: str, title: str) -> list[dict[str, s
         {
             "caption": topic,
             "narration_line": f"Today, Grandma tells a short story about {topic}.",
+            "image_query": "",
         },
-        {
-            "caption": "Listen close",
-            "narration_line": idea,
-        },
+        {"caption": "Listen close", "narration_line": idea, "image_query": ""},
         {
             "caption": "Something to learn",
             "narration_line": (
                 "Our little friend learns that patience, honesty, and kindness help every day."
             ),
+            "image_query": "",
         },
         {
             "caption": "Remember",
             "narration_line": (
                 "Carry this story in your heart. Grandma loves you. See you next time!"
             ),
+            "image_query": "",
         },
     ]
 
 
 def generate_script(prompt: str, template_id: str, duration_target_sec: int, content_source: str) -> dict[str, Any]:
-    """60s short: 5s channel intro + 4 image scenes; narration trimmed from the user's prompt."""
+    """60s short: 5s intro + 4 scenes. Uses Ollama/open LLM when configured, else rules-based stub."""
     settings = Settings()
-    if settings.script_provider != "stub":
-        raise NotImplementedError(f"SCRIPT_PROVIDER={settings.script_provider} not implemented yet")
-
     _template_manifest(template_id)
+    image_queries = build_scene_image_queries(prompt, story_title(prompt))
+
+    provider = settings.script_provider.lower().strip()
+    if provider in ("ollama", "openai_compatible"):
+        try:
+            llm = generate_llm_content_blocks(prompt, duration_target_sec)
+            return assemble_script(
+                title=llm["title"],
+                moral=llm["moral"],
+                template_id=template_id,
+                duration_target_sec=duration_target_sec,
+                content_source=content_source,
+                content_scenes=llm["scenes"],
+                fallback_image_queries=image_queries,
+            )
+        except Exception as exc:  # noqa: BLE001 — fall back so jobs still complete
+            logger.warning("LLM script failed (%s), using stub: %s", provider, exc)
+
+    if provider != "stub":
+        logger.warning("Unknown SCRIPT_PROVIDER=%s, using stub", settings.script_provider)
+
     title = story_title(prompt)
-    slot = _content_slot_sec(duration_target_sec)
-    image_queries = build_scene_image_queries(prompt, title)
+    scenes = _stub_content_scenes(prompt, title)
+    for i, scene in enumerate(scenes):
+        if not scene.get("image_query") and i < len(image_queries):
+            scene["image_query"] = image_queries[i]
 
-    scenes: list[dict[str, Any]] = [
-        {
-            "id": "intro",
-            "intro": True,
-            "skip_image_search": True,
-            "emoji": "📚",
-            "caption": "Grandma's Storytime\nWelcome to our channel!",
-            "narration_line": "Welcome to Grandma's Storytime!",
-            "duration_sec": float(INTRO_SECONDS),
-        },
-    ]
-
-    content = _content_narration_and_captions(prompt, title)
-    for i, block in enumerate(content[:CONTENT_SCENE_COUNT]):
-        scenes.append(
-            {
-                "id": f"s{i + 1}",
-                "emoji": "✨",
-                "caption": block["caption"],
-                "image_query": image_queries[i] if i < len(image_queries) else "children illustration",
-                "narration_line": block["narration_line"],
-                "duration_sec": slot,
-            }
-        )
-
-    narration = " ".join(s["narration_line"] for s in scenes)
-    return {
-        "schema_version": "1",
-        "title": title,
-        "moral": "Be kind, be honest, and keep learning.",
-        "template_id": template_id,
-        "duration_target_sec": duration_target_sec,
-        "content_source": content_source,
-        "scenes": scenes,
-        "narration": narration,
-    }
+    return assemble_script(
+        title=title,
+        moral="Be kind, be honest, and keep learning.",
+        template_id=template_id,
+        duration_target_sec=duration_target_sec,
+        content_source=content_source,
+        content_scenes=scenes,
+        fallback_image_queries=image_queries,
+    )

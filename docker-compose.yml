@@ -42,11 +42,23 @@ services:
     environment:
       AWS_REGION: ${S3_REGION:-us-east-1}
       AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - redis
     volumes:
       - ./schemas:/app/schemas:ro
       - ./templates:/app/templates:ro
 
+  # Optional local LLM — enable: docker compose --profile llm up -d ollama worker api
+  ollama:
+    profiles: ["llm"]
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
 volumes:
   minio_data:
+  ollama_data:

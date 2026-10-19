@@ -19,7 +19,16 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
     s3_use_ssl: bool = False
 
-    script_provider: str = "stub"
+    # stub = rules only; ollama = local Ollama; openai_compatible = vLLM, LocalAI, etc.
+    script_provider: Literal["stub", "ollama", "openai_compatible"] = "stub"
+    ollama_base_url: str = "http://ollama:11434"
+    ollama_model: str = "llama3.2:3b"
+    llm_openai_base_url: str = "http://localhost:8080"
+    llm_api_key: Optional[str] = None
+    llm_timeout_sec: int = 180
+    llm_max_tokens: int = 1200
+    llm_temperature: float = 0.4
+
     tts_provider: str = "edge"
     # Warm, clear English narrator (change if you prefer another Edge voice).
     tts_voice: str = "en-GB-SoniaNeural"

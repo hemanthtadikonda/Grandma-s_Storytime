@@ -22,7 +22,7 @@ flowchart LR
 |--------|-----------|
 | Orchestration | `services/api` — job lifecycle, OpenAPI |
 | Queue | Redis + Celery |
-| Script | `worker/app/pipeline/script.py` (grandma story template; LLM optional later) |
+| Script | `script.py` + **Ollama** (`SCRIPT_PROVIDER=ollama`) or `stub` fallback |
 | TTS | `worker/app/pipeline/tts.py` — **Edge TTS** (`TTS_VOICE`, default `en-GB-SoniaNeural`) |
 | Render | `worker/app/pipeline/render.py` — FFmpeg + `kids_moral_v1` |
 | Storage | MinIO (local) or **AWS S3** via EC2 IAM role; artifacts at `jobs/{id}/v1/output.mp4` |

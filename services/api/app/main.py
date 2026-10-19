@@ -70,7 +70,10 @@ def _job_to_response(job: JobRecord, cached: bool = False) -> JobResponse:
 
 def _enqueue_job(body: SubmitJobRequest) -> JobResponse:
     idem = _normalize_idempotency_key(body.idempotency_key) or prompt_hash(
-        body.prompt, body.template_id, body.duration_target_sec
+        body.prompt,
+        body.template_id,
+        body.duration_target_sec,
+        settings.script_provider,
     )
     existing = store.get_by_idempotency(idem)
     if existing and existing.status == JobStatus.done:

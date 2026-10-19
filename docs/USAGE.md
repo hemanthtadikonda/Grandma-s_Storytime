@@ -18,6 +18,8 @@ Users send **plain text** — no JSON.
 
 The API turns your text into an internal job automatically (`kids_moral_v1`, ~60 seconds, etc.).
 
+For **smarter stories**, set `SCRIPT_PROVIDER=ollama` and run [Ollama](deploy/ollama.md) on your VM (open-source LLM). Without it, scripts use simple rules only.
+
 ---
 
 <details>
