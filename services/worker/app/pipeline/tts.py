@@ -71,12 +71,14 @@ def synthesize_line(text: str, out_wav: Path) -> Path:
 
 
 def synthesize_scenes(scenes: list[dict[str, Any]], work_dir: Path) -> list[Path]:
-    """One grandma voice clip per scene; duration follows real speech."""
+    """One grandma voice clip per scene; scene duration is fixed by the script (60s layout)."""
     wavs: list[Path] = []
     for i, scene in enumerate(scenes):
         line = scene.get("narration_line") or scene.get("caption") or ""
         path = work_dir / f"scene_{i:02d}.wav"
         synthesize_line(line, path)
-        scene["duration_sec"] = round(_audio_duration_sec(path) + 0.35, 2)
+        planned = scene.get("duration_sec")
+        if planned is None:
+            scene["duration_sec"] = round(_audio_duration_sec(path) + 0.35, 2)
         wavs.append(path)
     return wavs

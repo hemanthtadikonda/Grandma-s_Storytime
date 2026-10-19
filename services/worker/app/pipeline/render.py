@@ -56,9 +56,8 @@ def _scene_video_filter(
     fade_out = max(dur - 0.4, 0.1)
 
     if from_image:
-        # Moderate upscale — scale=8000 can OOM on small VMs
         motion = (
-            f"scale=3840:-1,zoompan=z='min(1.06+0.001*on,1.18)':"
+            f"scale=1920:-1,zoompan=z='min(1.04+0.0008*on,1.12)':"
             f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
             f"d={frames}:s={w}x{h}:fps={fps}"
         )
@@ -133,6 +132,18 @@ def render_short(
             vf = _scene_video_filter(
                 dur, fps, w, h, font_file, caption_file, caption_color, font_size, from_image
             )
+            light_motion = bool(scene.get("intro"))
+            if light_motion:
+                vf = (
+                    f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                    f"crop={w}:{h},fps={fps},"
+                    f"fade=t=in:st=0:d=0.35,fade=t=out:st={max(dur - 0.4, 0.1):.2f}:d=0.35,"
+                    f"drawbox=x=40:y=ih-280:w=iw-80:h=200:color=0x000000@0.42:t=fill,"
+                    f"drawbox=x=40:y=ih-280:w=iw-80:h=200:color=0xffffff@0.15:t=6,"
+                    f"drawtext=fontfile={font_file}:textfile='{caption_file}':expansion=none:"
+                    f"fontcolor=0x{caption_color}:fontsize={font_size}:borderw=3:bordercolor=0x00000099:"
+                    f"x=(w-text_w)/2:y=h-th-90"
+                )
 
             _run_ffmpeg(
                 [
@@ -146,13 +157,18 @@ def render_short(
                     str(audio),
                     "-vf",
                     vf,
+                    "-af",
+                    f"atrim=0:{dur},apad=whole_dur={dur}",
+                    "-t",
+                    str(dur),
                     "-c:v",
                     "libx264",
+                    "-preset",
+                    "veryfast",
                     "-pix_fmt",
                     "yuv420p",
                     "-c:a",
                     "aac",
-                    "-shortest",
                     str(scene_mp4),
                 ]
             )

@@ -26,6 +26,9 @@ def fetch_scene_images(script: dict[str, Any], out_dir: Path, settings: Settings
     used_urls: set[str] = set()
 
     for i, scene in enumerate(script["scenes"]):
+        if scene.get("skip_image_search"):
+            paths.append(None)
+            continue
         query = scene.get("image_query") or scene.get("caption") or "children illustration"
         path = out_dir / f"scene_{i:02d}.jpg"
         try:

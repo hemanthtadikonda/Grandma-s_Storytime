@@ -15,5 +15,6 @@
     "caption_font_size": 48,
     "font_file": "/usr/share/fonts/truetype/quicksand/Quicksand-Bold.ttf"
   },
-  "scene_count_hint": 5
+  "scene_count_hint": 5,
+  "layout": "5s intro + 4 image scenes (~60s total)"
 }

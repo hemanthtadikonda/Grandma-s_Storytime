@@ -15,7 +15,6 @@ def build_scene_image_queries(prompt: str, title: str, hero: str) -> list[str]:
     if _has_any(p, ("saraswati", "sarasvati", "saraswathi")):
         queries = [
             "Saraswati goddess education veena",
-            "Saraswati Hindu goddess art",
             "children reading books school",
             "child learning writing classroom",
             "children happy friends school",
@@ -25,7 +24,6 @@ def build_scene_image_queries(prompt: str, title: str, hero: str) -> list[str]:
             "children prayer family",
             "temple lamp peaceful",
             "children meditation calm",
-            "family spiritual together",
             "sunrise hope children",
         ]
     elif _has_any(p, ("share", "sharing", "kind", "kindness")):
@@ -34,7 +32,6 @@ def build_scene_image_queries(prompt: str, title: str, hero: str) -> list[str]:
             "kids friends playground happy",
             "children helping each other",
             "happy children classroom",
-            "family love children",
         ]
     else:
         # Generic kids story — mix prompt words into middle scenes
@@ -44,13 +41,11 @@ def build_scene_image_queries(prompt: str, title: str, hero: str) -> list[str]:
             f"children {snippet} colorful",
             "child learning school books",
             "happy children friends outdoor",
-            "children bedtime stars peaceful",
         ]
 
-    # Personalize scene 2 with title/hero when short enough
-    if hero and hero != "our little friend":
+    if hero and hero != "our little friend" and len(queries) > 1:
         queries[1] = f"child {hero} learning happy"
-    if len(title) < 40:
-        queries[1] = f"children {title} illustration"
+    if len(title) < 40 and len(queries) > 0:
+        queries[0] = f"children {title} illustration"
 
-    return queries[:5]
+    return queries[:4]
