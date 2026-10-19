@@ -25,12 +25,16 @@ The API turns your text into an internal job automatically (`kids_moral_v1`, ~60
 
 1. Open `http://<host>:8000/docs`
 2. **POST /jobs** → **Try it out**
-3. In the request body text box, paste your **whole story or idea** (many lines OK)
-4. **Execute** → **202** with an `id`
+3. Under **Request body** → **Edit Value** (not the Curl block at the bottom), paste **only your story** — many lines OK
+4. Do **not** paste the generated `curl -X POST ...` line into the box
+5. **Execute** → **202** with an `id`
 5. **GET /jobs/{job_id}** → poll until `status` is `done`
-6. Open `download_url` for the MP4
+7. Open `download_url` for the MP4
 
-Do **not** use the old JSON shape on `POST /jobs`. Advanced options: **POST /jobs/json** (developers only).
+**Poll every 5–10 seconds.** Status goes: `queued` → `scripting` → `tts` → `images` → `rendering` → `uploading` → **`done`**.  
+While you saw `tts`, the job was still running — keep calling **GET /jobs/{id}** until `done` or `failed`.
+
+Advanced options: **POST /jobs/json** (developers only).
 
 </details>
 

@@ -31,6 +31,19 @@ app = FastAPI(
 )
 
 
+def _normalize_prompt(prompt: str) -> str:
+    text = prompt.strip()
+    if text.lower().startswith("curl "):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "You pasted a curl command. In Swagger, use the request body text box only — "
+                "paste your story, not the Curl example from below."
+            ),
+        )
+    return text
+
+
 def _normalize_idempotency_key(key: str | None) -> str | None:
     if key is None or key.strip() in ("", "string"):
         return None
@@ -108,9 +121,10 @@ def create_job(
         ],
     ),
 ) -> JobResponse:
-    if not prompt.strip():
+    cleaned = _normalize_prompt(prompt)
+    if not cleaned:
         raise HTTPException(status_code=422, detail="Prompt cannot be empty")
-    return _enqueue_job(SubmitJobRequest(prompt=prompt))
+    return _enqueue_job(SubmitJobRequest(prompt=cleaned))
 
 
 @app.post(

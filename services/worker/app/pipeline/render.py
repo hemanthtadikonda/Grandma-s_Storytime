@@ -18,8 +18,8 @@ def _manifest(template_id: str) -> dict[str, Any]:
     raise FileNotFoundError(f"template {template_id} not found")
 
 
-def _escape_drawtext(text: str) -> str:
-    return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+def _ffmpeg_path(path: Path) -> str:
+    return str(path).replace("\\", "/").replace(":", "\\:")
 
 
 def _font_path(manifest: dict[str, Any]) -> str:
@@ -40,7 +40,7 @@ def _scene_video_filter(
     w: int,
     h: int,
     font_file: str,
-    caption: str,
+    caption_file: str,
     caption_color: str,
     font_size: int,
     from_image: bool,
@@ -64,7 +64,7 @@ def _scene_video_filter(
         f"fade=t=in:st=0:d=0.35,fade=t=out:st={fade_out:.2f}:d=0.35,"
         f"drawbox=x=40:y=h-280:w=w-80:h=200:color=0x000000@0.42:t=fill,"
         f"drawbox=x=40:y=h-280:w=w-80:h=200:color=0xffffff@0.15:t=6,"
-        f"drawtext=fontfile={font_file}:text='{caption}':fontcolor=0x{caption_color}:"
+        f"drawtext=fontfile={font_file}:textfile={caption_file}:expansion=none:fontcolor=0x{caption_color}:"
         f"fontsize={font_size}:borderw=3:bordercolor=0x00000099:"
         f"x=(w-text_w)/2:y={caption_y}"
     )
@@ -96,7 +96,9 @@ def render_short(
         scene_clips: list[Path] = []
 
         for i, scene in enumerate(script["scenes"]):
-            caption = _escape_drawtext(scene["caption"])
+            caption_path = tmp_path / f"caption_{i}.txt"
+            caption_path.write_text(scene["caption"], encoding="utf-8")
+            caption_file = _ffmpeg_path(caption_path)
             dur = float(scene["duration_sec"])
             scene_mp4 = tmp_path / f"scene_{i}.mp4"
             audio = scene_wavs[i]
@@ -122,7 +124,9 @@ def render_short(
                 )
                 from_image = True
 
-            vf = _scene_video_filter(dur, fps, w, h, font_file, caption, caption_color, font_size, from_image)
+            vf = _scene_video_filter(
+                dur, fps, w, h, font_file, caption_file, caption_color, font_size, from_image
+            )
 
             subprocess.run(
                 [
@@ -147,6 +151,7 @@ def render_short(
                 ],
                 check=True,
                 capture_output=True,
+                text=True,
             )
             scene_clips.append(scene_mp4)
 
