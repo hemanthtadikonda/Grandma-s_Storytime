@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://grandma-storytime.local/schemas/script_v1.json",
+  "title": "ScriptV1",
+  "type": "object",
+  "required": ["schema_version", "title", "moral", "scenes", "narration"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "title": { "type": "string" },
+    "moral": { "type": "string" },
+    "template_id": { "type": "string" },
+    "duration_target_sec": { "type": "integer" },
+    "content_source": { "type": "string" },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "caption", "narration_line"],
+        "properties": {
+          "id": { "type": "string" },
+          "caption": { "type": "string" },
+          "narration_line": { "type": "string" },
+          "duration_sec": { "type": "number", "minimum": 1 }
+        }
+      }
+    },
+    "narration": {
+      "type": "string",
+      "description": "Full voiceover text (TTS input)."
+    }
+  }
+}

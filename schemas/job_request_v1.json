@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://grandma-storytime.local/schemas/job_request_v1.json",
+  "title": "JobRequestV1",
+  "type": "object",
+  "required": ["prompt", "template_id"],
+  "properties": {
+    "prompt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text story idea for the worker to turn into structured script JSON."
+    },
+    "template_id": {
+      "type": "string",
+      "enum": ["kids_moral_v1"],
+      "description": "Visual/narration template; versioned separately under templates/."
+    },
+    "duration_target_sec": {
+      "type": "integer",
+      "minimum": 15,
+      "maximum": 180,
+      "default": 60
+    },
+    "content_source": {
+      "type": "string",
+      "enum": ["original", "public_domain"],
+      "default": "original",
+      "description": "Audit tag for policy and storage."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "Optional client key; if omitted, server hashes prompt + template_id."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
