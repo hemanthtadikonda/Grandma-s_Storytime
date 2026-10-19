@@ -40,23 +40,14 @@ flowchart LR
 | `GET` | `/jobs/{id}` | Status; includes presigned `download_url` when `done` |
 | `GET` | `/artifacts/{id}` | Artifact metadata + download URL (`artifact_id` = `job_id` for now) |
 | `GET` | `/health` | Liveness |
-| `GET` | `/docs` | OpenAPI UI |
+| `GET` | `/docs` | OpenAPI UI (Swagger) |
 
-### Example
+**Create videos (UI, curl, PowerShell):** [docs/USAGE.md](docs/USAGE.md)
 
 ```powershell
 copy .env.example .env
 docker compose --profile minio up --build
-
-$job = Invoke-RestMethod -Method Post -Uri http://localhost:8000/jobs `
-  -ContentType application/json `
-  -Body '{"prompt":"A squirrel learns to share acorns with friends.","template_id":"kids_moral_v1"}'
-
-.\scripts\poll_job.ps1 -JobId $job.id
-# When status is done, open download_url in browser
 ```
-
-Or use `.\scripts\submit_job.ps1 -Prompt "Your story idea"`.
 
 ## Local layout
 

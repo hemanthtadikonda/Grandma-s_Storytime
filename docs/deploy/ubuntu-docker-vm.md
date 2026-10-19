@@ -189,68 +189,13 @@ Browser: `http://<VM_PUBLIC_IP>:8000/docs`
 
 ---
 
-## 7. Create your first video (usage)
+## 7. Create videos
 
-### Option A — curl on the VM
-
-```bash
-JOB=$(curl -s -X POST http://localhost:8000/jobs \
-  -H "Content-Type: application/json" \
-  -d '{"prompt":"Mia learns to share her red ball with a shy new friend at the park.","template_id":"kids_moral_v1","duration_target_sec":60,"content_source":"original"}')
-
-echo "$JOB"
-JOB_ID=$(echo "$JOB" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-echo "Job ID: $JOB_ID"
-```
-
-Poll:
-
-```bash
-while true; do
-  curl -s "http://localhost:8000/jobs/$JOB_ID" | python3 -m json.tool
-  STATUS=$(curl -s "http://localhost:8000/jobs/$JOB_ID" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])")
-  if [ "$STATUS" = "done" ] || [ "$STATUS" = "failed" ]; then break; fi
-  sleep 5
-done
-```
-
-Download URL:
-
-```bash
-curl -s "http://localhost:8000/jobs/$JOB_ID" | python3 -c "import sys,json; print(json.load(sys.stdin).get('download_url',''))"
-```
-
-```bash
-curl -L -o my_short.mp4 "<paste-download_url-here>"
-```
-
-### Option B — curl from your laptop
-
-Use `http://<VM_PUBLIC_IP>:8000` instead of `localhost`.
-
-### Option C — OpenAPI UI
-
-`http://<VM_PUBLIC_IP>:8000/docs` → **POST /jobs** → **GET /jobs/{job_id}** → open `download_url`.
+See **[docs/USAGE.md](../USAGE.md)** — Swagger UI, curl, PowerShell, JSON body, 422 fix (expand sections in that file).
 
 ---
 
-## 8. Job statuses
-
-| Status | Meaning |
-|--------|---------|
-| `queued` | Waiting for worker |
-| `scripting` | Building grandma story text |
-| `tts` | English voice (Edge TTS) |
-| `rendering` | FFmpeg vertical video |
-| `uploading` | Saving MP4 to MinIO |
-| `done` | Use `download_url` |
-| `failed` | See `error`; `docker compose logs worker` |
-
-Typical render: **1–3 minutes** on a 2–4 vCPU VM with 8 GB RAM.
-
----
-
-## 9. Operations
+## 8. Operations
 
 ```bash
 cd ~/Grandma-s_Storytime
@@ -265,7 +210,7 @@ docker compose up -d           # start again
 
 ---
 
-## 10. Optional: run stack on boot
+## 9. Optional: run stack on boot
 
 ```bash
 sudo nano /etc/systemd/system/grandma-storytime.service
@@ -299,7 +244,7 @@ sudo systemctl start grandma-storytime.service
 
 ---
 
-## 11. Troubleshooting
+## 10. Troubleshooting
 
 | Problem | What to do |
 |---------|------------|
@@ -313,7 +258,7 @@ sudo systemctl start grandma-storytime.service
 
 ---
 
-## 12. Security checklist
+## 11. Security checklist
 
 - [ ] SSH and **8000** limited to your IP
 - [ ] EC2: S3 via **IAM role** (no keys in `.env`); local dev: MinIO not exposed publicly
@@ -323,7 +268,7 @@ sudo systemctl start grandma-storytime.service
 
 ---
 
-## 13. Channel workflow
+## 12. Channel workflow
 
 1. **POST /jobs** with a moral prompt.  
 2. Poll until `done`.  
@@ -334,7 +279,7 @@ sudo systemctl start grandma-storytime.service
 
 ---
 
-## 14. Next upgrades
+## 13. Next upgrades
 
 1. LLM for unique stories per prompt.  
 2. Scene images + Ken Burns in the worker.  
