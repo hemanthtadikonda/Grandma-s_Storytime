@@ -1,51 +1,24 @@
-"""Build per-scene image search queries from the user prompt (keyword heuristics)."""
+"""Build per-scene image search queries from prompt keywords (works for any topic)."""
 
-import re
-
-
-def _has_any(text: str, words: tuple[str, ...]) -> bool:
-    t = text.lower()
-    return any(w in t for w in words)
+from app.pipeline.prompt_extract import search_keywords, strip_markdown
 
 
-def build_scene_image_queries(prompt: str, title: str, hero: str) -> list[str]:
-    p = prompt.lower()
-    queries: list[str] = []
+def build_scene_image_queries(prompt: str, title: str) -> list[str]:
+    terms = search_keywords(prompt, title, limit=8)
+    t0, t1, t2 = terms[0], terms[1] if len(terms) > 1 else "children", terms[2] if len(terms) > 2 else "happy"
 
-    if _has_any(p, ("saraswati", "sarasvati", "saraswathi")):
-        queries = [
-            "Saraswati goddess education veena",
-            "children reading books school",
-            "child learning writing classroom",
-            "children happy friends school",
-        ]
-    elif _has_any(p, ("pray", "prayer", "god", "goddess", "temple", "devotion", "worship")):
-        queries = [
-            "children prayer family",
-            "temple lamp peaceful",
-            "children meditation calm",
-            "sunrise hope children",
-        ]
-    elif _has_any(p, ("share", "sharing", "kind", "kindness")):
-        queries = [
-            "children sharing toys",
-            "kids friends playground happy",
-            "children helping each other",
-            "happy children classroom",
-        ]
-    else:
-        # Generic kids story — mix prompt words into middle scenes
-        snippet = re.sub(r"[^\w\s]", "", prompt)[:50].strip() or "children story"
-        queries = [
-            "grandmother reading story children illustration",
-            f"children {snippet} colorful",
-            "child learning school books",
-            "happy children friends outdoor",
-        ]
+    snippet = " ".join(terms[:4])[:60] or "children story"
+    clean_title = strip_markdown(title)[:40]
 
-    if hero and hero != "our little friend" and len(queries) > 1:
-        queries[1] = f"child {hero} learning happy"
-    if len(title) < 40 and len(queries) > 0:
-        queries[0] = f"children {title} illustration"
+    queries = [
+        f"children {clean_title} illustration" if len(clean_title) > 3 else f"children {t0} {t1}",
+        f"kids {t1} {t2} colorful",
+        f"child learning {t0} school",
+        f"happy children {t2} friends outdoor",
+    ]
+
+    # If prompt is very keyword-rich, rotate terms into later scenes
+    if len(terms) > 4:
+        queries[2] = f"children {terms[3]} {terms[4] if len(terms) > 4 else 'play'}"
 
     return queries[:4]
