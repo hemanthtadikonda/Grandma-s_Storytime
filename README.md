@@ -25,7 +25,7 @@ flowchart LR
 | Script | `worker/app/pipeline/script.py` (grandma story template; LLM optional later) |
 | TTS | `worker/app/pipeline/tts.py` — **Edge TTS** (`TTS_VOICE`, default `en-GB-SoniaNeural`) |
 | Render | `worker/app/pipeline/render.py` — FFmpeg + `kids_moral_v1` |
-| Storage | MinIO; artifacts at `jobs/{id}/v1/output.mp4` |
+| Storage | MinIO (local) or **AWS S3** via EC2 IAM role; artifacts at `jobs/{id}/v1/output.mp4` |
 | Contract | `schemas/job_request_v1.json`, `schemas/script_v1.json` |
 
 **Job statuses:** `queued` → `scripting` → `tts` → `rendering` → `uploading` → `done` (or `failed`).
@@ -46,7 +46,7 @@ flowchart LR
 
 ```powershell
 copy .env.example .env
-docker compose up --build
+docker compose --profile minio up --build
 
 $job = Invoke-RestMethod -Method Post -Uri http://localhost:8000/jobs `
   -ContentType application/json `
@@ -76,8 +76,8 @@ docker-compose.yml api, worker, redis, minio
 Short version:
 
 1. Provision **one VM** (2–4 vCPU, 8 GB RAM), install Docker + Compose plugin.
-2. Clone repo, `cp .env.example .env`, set strong MinIO keys and restrict firewall to **22, 8000** (or put API behind Caddy/nginx + TLS).
-3. `docker compose up -d --build`.
+2. On EC2: `cp .env.aws.example .env`, set `S3_BUCKET` / `S3_REGION`, attach [IAM role for S3](docs/deploy/aws-s3-iam-role.md). Local: `cp .env.example .env` and use `--profile minio`.
+3. `docker compose up -d --build` (EC2) or `docker compose --profile minio up -d --build` (local).
 4. Batch jobs; **stop the VM** when idle to save cost.
 
 Phase 2: separate render workers (scale `worker` replicas). Phase 3: managed S3, SQS, Terraform, metrics.

@@ -4,7 +4,9 @@ services:
     ports:
       - "6379:6379"
 
+  # Local dev only — omit profile on EC2 when using AWS S3 + IAM role (see .env.aws.example)
   minio:
+    profiles: ["minio"]
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
@@ -21,11 +23,13 @@ services:
       context: .
       dockerfile: services/api/Dockerfile
     env_file: .env
+    environment:
+      AWS_REGION: ${S3_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
     ports:
       - "8000:8000"
     depends_on:
       - redis
-      - minio
     volumes:
       - ./schemas:/app/schemas:ro
       - ./templates:/app/templates:ro
@@ -35,9 +39,11 @@ services:
       context: .
       dockerfile: services/worker/Dockerfile
     env_file: .env
+    environment:
+      AWS_REGION: ${S3_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
     depends_on:
       - redis
-      - minio
     volumes:
       - ./schemas:/app/schemas:ro
       - ./templates:/app/templates:ro

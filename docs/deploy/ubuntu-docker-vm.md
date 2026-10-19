@@ -121,39 +121,41 @@ cp .env.example .env
 nano .env
 ```
 
-**Important:** with Docker Compose, keep service hostnames `redis` and `minio` in `.env` — not `localhost`.
+**Important:** with Docker Compose, keep `redis` as hostname in `.env` — not `localhost`.
 
-**Production:**
+### Storage on EC2 (recommended): S3 + IAM role
 
-1. Strong MinIO credentials:
+Do **not** put access keys in `.env`. Attach an IAM role to the EC2 instance and use a real S3 bucket.
+
+1. Follow **[aws-s3-iam-role.md](aws-s3-iam-role.md)** (bucket, policy, role, attach to instance).
+2. On the VM:
 
    ```bash
-   openssl rand -base64 24
+   cp .env.aws.example .env
+   nano .env   # set S3_BUCKET and S3_REGION only
    ```
 
-2. In `.env`:
+3. Start stack **without** MinIO:
 
-   ```env
-   S3_ACCESS_KEY=<long-access-key>
-   S3_SECRET_KEY=<openssl-output>
+   ```bash
+   docker compose up --build -d
    ```
 
-3. Match in `docker-compose.yml` under the **minio** service:
+### Storage for local dev: MinIO
 
-   ```yaml
-   environment:
-     MINIO_ROOT_USER: <same-as-S3_ACCESS_KEY>
-     MINIO_ROOT_PASSWORD: <same-as-S3_SECRET_KEY>
-   ```
+```bash
+cp .env.example .env
+docker compose --profile minio up --build -d
+```
 
-4. Voice:
+Voice (both setups):
 
-   ```env
-   TTS_PROVIDER=edge
-   TTS_VOICE=en-GB-SoniaNeural
-   ```
+```env
+TTS_PROVIDER=edge
+TTS_VOICE=en-GB-SoniaNeural
+```
 
-   US option: `en-US-JennyNeural`
+US option: `en-US-JennyNeural`
 
 ---
 
@@ -314,7 +316,7 @@ sudo systemctl start grandma-storytime.service
 ## 12. Security checklist
 
 - [ ] SSH and **8000** limited to your IP
-- [ ] MinIO keys not default `minioadmin`
+- [ ] EC2: S3 via **IAM role** (no keys in `.env`); local dev: MinIO not exposed publicly
 - [ ] `.env` not in git
 - [ ] Review MP4s before YouTube
 - [ ] HTTPS (Caddy/nginx + domain) if API is exposed broadly

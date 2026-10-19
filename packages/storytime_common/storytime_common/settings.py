@@ -1,3 +1,5 @@
+from typing import Literal, Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,9 +10,11 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
 
-    s3_endpoint: str = "http://localhost:9000"
-    s3_access_key: str = "minioadmin"
-    s3_secret_key: str = "minioadmin"
+    # minio = local Docker MinIO; aws = Amazon S3 via IAM role or default credential chain
+    storage_backend: Literal["minio", "aws"] = "minio"
+    s3_endpoint: Optional[str] = None
+    s3_access_key: Optional[str] = None
+    s3_secret_key: Optional[str] = None
     s3_bucket: str = "storytime"
     s3_region: str = "us-east-1"
     s3_use_ssl: bool = False
