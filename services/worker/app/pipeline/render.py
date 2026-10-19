@@ -72,7 +72,7 @@ def _scene_video_filter(
         f"drawbox=x=40:y=ih-280:w=iw-80:h=200:color=0xffffff@0.15:t=6,"
         f"drawtext=fontfile={font_file}:textfile='{caption_file}':expansion=none:"
         f"fontcolor=0x{caption_color}:fontsize={font_size}:borderw=3:bordercolor=0x00000099:"
-        f"x=(w-text_w)/2:y='ih-th-90'"
+        f"x=(w-text_w)/2:y=h-th-90"
     )
 
 
