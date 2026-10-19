@@ -7,7 +7,8 @@ WORKDIR /app
 
 COPY packages/storytime_common /app/packages/storytime_common
 COPY services/worker/requirements.txt /app/services/worker/requirements.txt
-RUN pip install --no-cache-dir -r /app/services/worker/requirements.txt
+RUN pip install --no-cache-dir /app/packages/storytime_common \
+    && pip install --no-cache-dir -r /app/services/worker/requirements.txt
 
 COPY services/worker/app /app/services/worker/app
 COPY schemas /app/schemas
