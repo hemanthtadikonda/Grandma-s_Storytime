@@ -2,9 +2,11 @@
 
 Create **English kids Shorts**: you send a story idea (prompt) → the worker writes a grandma-style script, speaks it with a **warm narrator voice** (Edge TTS), and renders a **colorful vertical video** you can upload to YouTube.
 
-**What you get today:** grandma English voice; **per-scene images** from your prompt keywords (Wikimedia / Pexels / Pixabay), slow zoom, caption cards; temp images deleted after each job. Fallback: generated art or PNGs in `templates/kids_moral_v1/assets/`.
+**What you get today:** ~**60 s** vertical Short (**5 s** channel intro + **4** image scenes); **Ollama** (open-source LLM) or rules-only script; grandma **Edge TTS**; per-scene **stock images** (Wikimedia / Pexels / Pixabay), Ken Burns zoom, captions.
 
-**You are responsible** for image licenses and YouTube attribution when using search providers. **Not yet:** full character animation.
+**Docs:** [Usage](docs/USAGE.md) · **[Implementation](docs/IMPLEMENTATION.md)** · [Deploy](docs/deploy/README.md) · [Ollama](docs/deploy/ollama.md)
+
+**You are responsible** for image licenses and YouTube attribution. **Not yet:** 3D animation, Sanskrit chanting, BGM, 16:9 landscape.
 
 ## Architecture (Phase 1 — single VM / Compose)
 
@@ -12,10 +14,13 @@ Create **English kids Shorts**: you send a story idea (prompt) → the worker wr
 flowchart LR
   Client[CLI / curl / UI] --> API[FastAPI]
   API --> Redis[(Redis)]
-  API --> MinIO[(MinIO S3)]
+  API --> S3[(S3 / MinIO)]
   Redis --> Worker[Celery worker]
-  Worker --> MinIO
+  Worker --> Ollama[Ollama LLM optional]
+  Worker --> EdgeTTS[Edge TTS]
+  Worker --> Images[Image search]
   Worker --> FFmpeg[FFmpeg render]
+  Worker --> S3
 ```
 
 | Layer | This repo |
@@ -30,7 +35,7 @@ flowchart LR
 
 **Job statuses:** `queued` → `scripting` → `tts` → `images` → `rendering` → `uploading` → `done` (or `failed`).
 
-**Idempotency:** same `prompt` + `template_id` + `duration_target_sec` → SHA-256 key; completed jobs return `cached: true`.
+**Idempotency:** same `prompt` + `template_id` + `duration_target_sec` + `script_provider` → SHA-256 key; completed jobs return `cached: true`.
 
 ## API (v1)
 
@@ -76,10 +81,12 @@ Phase 2: separate render workers (scale `worker` replicas). Phase 3: managed S3,
 
 ## Next modules to wire (in order)
 
-1. **Richer stories:** LLM (`SCRIPT_PROVIDER=ollama` or API) so every prompt becomes a unique tale, not a fixed template.
-2. **Visual wow:** per-scene illustrations + light motion (or Remotion characters).
+1. **Voice & music:** Indian English / prayer lines, soft BGM in FFmpeg.
+2. **Visual wow:** per-scene illustrations (not only stock search) or Remotion characters.
 3. **Publish adapter:** YouTube Data API after you approve each video (`draft → approved → publish`).
 4. **Observability:** structured logs, job duration metrics.
+
+**Implementation details:** [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)
 
 ## Stack choice
 

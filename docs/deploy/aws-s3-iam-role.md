@@ -104,13 +104,23 @@ cp .env.aws.example .env
 nano .env
 ```
 
-Set only:
+Set at minimum:
 
 ```env
 STORAGE_BACKEND=aws
 S3_BUCKET=grandma-storytime-artifacts
 S3_REGION=us-east-1
 ```
+
+For **LLM scripts** on the same EC2 instance, add (after installing Ollama on the host — see [ollama.md](ollama.md)):
+
+```env
+SCRIPT_PROVIDER=ollama
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=llama3.2:3b
+```
+
+See [IMPLEMENTATION.md](../IMPLEMENTATION.md) for the full pipeline.
 
 Leave **unset** (remove if present): `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
 

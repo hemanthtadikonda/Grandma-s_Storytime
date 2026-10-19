@@ -157,6 +157,23 @@ TTS_VOICE=en-GB-SoniaNeural
 
 US option: `en-US-JennyNeural`
 
+### Scripts (recommended: Ollama on the host)
+
+For prompts that are not turned into good stories by rules alone, use a **local open-source LLM**:
+
+1. On the VM: install Ollama and `ollama pull llama3.2:3b` — full steps in **[ollama.md](ollama.md)**.
+2. In `.env`:
+
+   ```env
+   SCRIPT_PROVIDER=ollama
+   OLLAMA_BASE_URL=http://host.docker.internal:11434
+   OLLAMA_MODEL=llama3.2:3b
+   ```
+
+3. Rebuild: `docker compose up --build -d worker`
+
+Pipeline overview: **[IMPLEMENTATION.md](../IMPLEMENTATION.md)**.
+
 ---
 
 ## 6. Build and start the stack
@@ -281,10 +298,12 @@ sudo systemctl start grandma-storytime.service
 
 ## 13. Next upgrades
 
-1. LLM for unique stories per prompt.  
-2. Scene images + Ken Burns in the worker.  
+1. Voice / music (prayer lines, BGM).  
+2. Custom illustrations per scene (beyond stock search).  
 3. Static public IP / DNS for the API.  
-4. Managed object storage (S3) instead of MinIO.
+4. Metrics and job duration dashboards.
+
+LLM scripting and Ken Burns render are documented in **[IMPLEMENTATION.md](../IMPLEMENTATION.md)**.
 
 ---
 

@@ -18,7 +18,9 @@ Users send **plain text** — no JSON.
 
 The API turns your text into an internal job automatically (`kids_moral_v1`, ~60 seconds, etc.).
 
-For **smarter stories**, set `SCRIPT_PROVIDER=ollama` and run [Ollama](deploy/ollama.md) on your VM (open-source LLM). Without it, scripts use simple rules only.
+**Smarter scripts:** set `SCRIPT_PROVIDER=ollama` and run [Ollama](deploy/ollama.md). Without it, the worker uses rule-based `stub` only.
+
+**How it works (developers):** [IMPLEMENTATION.md](IMPLEMENTATION.md) — 60 s layout, LLM, TTS, images, FFmpeg.
 
 ---
 
@@ -103,7 +105,7 @@ For scripts that need `idempotency_key`, `duration_target_sec`, etc.:
 | `status` | Meaning |
 |----------|---------|
 | `queued` | Waiting for worker |
-| `scripting` | Story text |
+| `scripting` | Story JSON (Ollama or stub; may take up to ~90 s on CPU) |
 | `tts` | Voice |
 | `images` | Download scene pictures |
 | `rendering` | Video |
@@ -114,9 +116,34 @@ For scripts that need `idempotency_key`, `duration_target_sec`, etc.:
 </details>
 
 <details>
+<summary><strong>Video shape (~60 seconds)</strong></summary>
+
+- **5 seconds:** channel intro (“Grandma’s Storytime”, welcome) — branding card, no stock image.
+- **~55 seconds:** **4 scenes** with images + grandma voice + on-screen captions.
+- Long prompts are **summarized** for narration (never read word-for-word).
+
+Default template: `kids_moral_v1` (1080×1920 vertical). Not 16:9 or full 3D.
+
+</details>
+
+<details>
 <summary><strong>Scene images (auto)</strong></summary>
 
-From your prompt, the worker searches images per scene (see `.env` `IMAGE_PROVIDER`). Temp files are deleted after the job. Override with PNGs in `templates/kids_moral_v1/assets/`.
+The script includes an `image_query` per content scene (from the LLM or keyword rules). The worker searches via `IMAGE_PROVIDER` (default Wikimedia). Temp files are deleted after the job. Override with PNGs in `templates/kids_moral_v1/assets/`.
+
+</details>
+
+<details>
+<summary><strong>Environment (pipeline)</strong></summary>
+
+| Variable | Purpose |
+|----------|---------|
+| `SCRIPT_PROVIDER` | `ollama` (recommended), `stub`, or `openai_compatible` |
+| `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | Local LLM — see [deploy/ollama.md](deploy/ollama.md) |
+| `TTS_VOICE` | Edge TTS voice (default `en-GB-SoniaNeural`) |
+| `IMAGE_PROVIDER` | `wikimedia`, `pexels`, `pixabay`, or `none` |
+
+Full list: [IMPLEMENTATION.md](IMPLEMENTATION.md#environment-variables-pipeline).
 
 </details>
 
@@ -128,6 +155,8 @@ From your prompt, the worker searches images per scene (see `.env` `IMAGE_PROVID
 | 422 on `POST /jobs` | Use **text/plain** body, not JSON |
 | Used JSON on `/jobs` by mistake | Use **POST /jobs/json** or switch to plain text |
 | Stuck `queued` | `docker compose logs worker` |
-| Same video again | Change prompt or use `idempotency_key` in `/jobs/json` |
+| Same video again | Change prompt, `SCRIPT_PROVIDER`, or `idempotency_key` in `/jobs/json` |
+| Dumb / generic story | Enable Ollama (`SCRIPT_PROVIDER=ollama`); check `docker compose logs worker` for LLM errors |
+| `scripting` very slow | Normal with CPU Ollama; use a smaller model or more RAM |
 
 </details>

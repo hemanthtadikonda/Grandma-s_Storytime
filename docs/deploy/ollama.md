@@ -2,6 +2,8 @@
 
 The worker can write scene narration, captions, and image search phrases with a **local LLM** instead of the rules-only `stub` provider.
 
+**See also:** [IMPLEMENTATION.md](../IMPLEMENTATION.md) (full pipeline, env vars, code map).
+
 ## Providers
 
 | `SCRIPT_PROVIDER` | Use case |
